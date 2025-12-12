@@ -1,0 +1,30 @@
+1. Tech Stack & Environment
+Framework: Next.js 15 (App Router) + TypeScript.
+Target: Static Export (서버리스 환경 배포).
+Path Alias: @/* (루트 기준 절대 경로 사용).
+2. UI & Styling
+Primary: Tailwind CSS + Shadcn/ui (생산성 최우선).
+Secondary: 순수 CSS Module (복잡한 애니메이션/특수 레이아웃에 한해 허용).
+Prohibited: SCSS (CSS Preprocessor 설치 금지), Styled-components (Runtime CSS-in-JS 지양).
+3. State Management Strategy (Revised)
+전역 상태 라이브러리(Redux, Zustand) 없이 Native React API만으로 성능을 확보하기 위해, 데이터의 성격에 따라 관리 방법을 엄격히 분리합니다.
+
+A. 정적/저빈도 데이터 (Low Frequency) → Context API
+용도: 사용자 설정(테마, 단축키), 프로젝트 메타데이터(ROI 리스트), 전역 모드(Guide/Workspace).
+원칙: 성격별로 Context를 최대한 잘게 쪼갠다 (SettingsContext, ProjectContext) 불필요한 구독 방지.
+B. 고빈도 데이터 (High Frequency) → Ref + Subscription
+용도: 영상 현재 시간(currentTime), 마우스 좌표, OCR 진행률.
+원칙: 절대 Context State에 태우지 않는다.
+구현 패턴:
+데이터는 useRef 변수에 저장 (렌더링 미유발).
+데이터 변화가 필요할 때만 requestAnimationFrame 루프를 통해 특정 돔을 직접 업데이트하거나,
+해당 데이터가 꼭 필요한 말단 컴포넌트(예: ProgressBar)만 useVideoTime() 같은 커스텀 훅을 통해 로컬 State로 동기화.
+4. DOM Manipulation Policy
+Primary: React Ref (useRef). document.getElementById와 같은 전역 셀렉터 사용 지양.
+Exception:
+Canvas Drawing (픽셀 조작 성능 이슈).
+Video Element Control (play/pause, seek).
+위 경우에 한해, 리액트의 라이프사이클을 벗어난 직접 제어(Imperative Handle)를 허용한다.
+5. Folder Structure
+app/: 라우팅 및 페이지 진입점.
+components/ui/: Shadcn 등 재사용 가능한 UI 조각.
