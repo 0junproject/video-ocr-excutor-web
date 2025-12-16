@@ -8,6 +8,7 @@ export interface VideoState {
   duration: number;
   playbackRate: number;
   sourceUrl: string | null;
+  stream: MediaStream | null; // New: For Screen Share
 }
 
 export function useVideo() {
@@ -23,32 +24,66 @@ export function useVideo() {
     duration: 0,
     playbackRate: 1.0,
     sourceUrl: null,
+    stream: null,
   });
 
-  // 1. File Loading
+  // 1. File & URL Loading
   const loadFile = useCallback((file: File) => {
+    reset(); // Clear previous
     const url = URL.createObjectURL(file);
     setVideoState((prev) => ({ ...prev, sourceUrl: url }));
-    
-    // Revoke old URL if exists to prevent memory leak (optional logic here)
-    // For simplicity, we assume one file loaded at a time or handled by cleanup
+  }, []);
+
+  const loadUrl = useCallback((url: string) => {
+    reset(); // Clear previous
+    setVideoState((prev) => ({ ...prev, sourceUrl: url }));
+  }, []);
+
+  const startScreenShare = useCallback(async () => {
+    try {
+        reset(); // Clear previous
+        const stream = await navigator.mediaDevices.getDisplayMedia({ 
+            video: true, 
+            audio: true 
+        });
+        
+        // Handle stream ending (user clicks "Stop sharing" in browser UI)
+        stream.getVideoTracks()[0].onended = () => {
+            reset();
+        };
+
+        setVideoState(prev => ({ ...prev, stream }));
+    } catch (err) {
+        console.error("Screen Share Error:", err);
+    }
   }, []);
 
   const reset = useCallback(() => {
+    // 1. Revoke URL
     if (videoState.sourceUrl) {
       URL.revokeObjectURL(videoState.sourceUrl);
     }
+    // 2. Stop Stream Tracks
+    if (videoState.stream) {
+        videoState.stream.getTracks().forEach(track => track.stop());
+    }
+
     setVideoState({
       isPlaying: false,
       currentTime: 0,
       duration: 0,
       playbackRate: 1.0,
       sourceUrl: null,
+      stream: null,
     });
+    
+    // Force reload
     if (videoRef.current) {
+        videoRef.current.src = "";
+        videoRef.current.srcObject = null;
         videoRef.current.load();
     }
-  }, [videoState.sourceUrl]);
+  }, [videoState.sourceUrl, videoState.stream]);
 
   // 2. Playback Control
   const togglePlay = useCallback(() => {
@@ -80,9 +115,6 @@ export function useVideo() {
     const onPause = () => setVideoState(p => ({ ...p, isPlaying: false }));
     const onTimeUpdate = () => {
         timeRef.current = video.currentTime;
-        // Optimization: Don't update React state every frame, only for UI sync if needed.
-        // For now, we update it for the progress bar 
-        // In heavily optimized apps, we might throttle this.
         setVideoState(p => ({ ...p, currentTime: video.currentTime }));
     };
     const onLoadedMetadata = () => {
@@ -100,12 +132,14 @@ export function useVideo() {
         video.removeEventListener("timeupdate", onTimeUpdate);
         video.removeEventListener("loadedmetadata", onLoadedMetadata);
     };
-  }, [videoRef.current]); // Re-bind if ref changes (which is rare)
+  }, [videoRef]); 
 
   return {
     videoRef,
     videoState,
     loadFile,
+    loadUrl,
+    startScreenShare,
     reset,
     togglePlay,
     setPlaybackRate,

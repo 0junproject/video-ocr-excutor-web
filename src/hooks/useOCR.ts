@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-// import { createWorker, Worker } from "tesseract.js"; 
+import { createWorker, Worker } from "tesseract.js"; 
+import { pipeline, TrOCRPreTrainedModel } from '@huggingface/transformers';
 
 export type OCRStatus = "idle" | "initializing" | "recognizing" | "error";
 
@@ -11,54 +12,65 @@ export interface OCRResult {
 }
 
 export function useOCR() {
-  // const workerRef = useRef<Worker | null>(null);
+  const workerRef = useRef<Worker | null>(null);
   const [status, setStatus] = useState<OCRStatus>("idle");
   const [progress, setProgress] = useState(0);
 
-  // Initialize Worker (Mocked)
+  // Initialize Worker
   useEffect(() => {
-    // const initWorker = async () => {
-    //   setStatus("initializing");
-    //   try {
-    //     // await new Promise(r => setTimeout(r, 500)); // Mock init delay
-    //     setStatus("idle");
-    //   } catch (error) {
-    //     console.error("Failed to initialize Tesseract worker:", error);
-    //     setStatus("error");
-    //   }
-    // };
-    // initWorker();
-
-    // Directly set idle for mock
-    setStatus("idle");
+    const initWorker = async () => {
+      try {
+        const worker = await createWorker('eng+kor'); // Support English and Korean
+        workerRef.current = worker;
+        setStatus("idle");
+      } catch (error) {
+        console.error("Failed to initialize Tesseract worker:", error);
+        setStatus("error");
+      }
+    };
+    initWorker();
 
     return () => {
-        // workerRef.current?.terminate();
+        const terminate = async () => {
+            if (workerRef.current) {
+                await workerRef.current.terminate();
+                workerRef.current = null;
+            }
+        };
+        terminate();
     };
   }, []);
 
   const recognize = useCallback(async (image: string | HTMLCanvasElement | Blob): Promise<OCRResult> => {
+    console.log("recognize called")
+    if (!workerRef.current) {
+        console.error("OCR Worker not initialized");
+        return { text: "", confidence: 0 };
+    }
+
     setStatus("recognizing");
     setProgress(0);
 
-    // Mock Processing
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const mockText = `MOCK TEXT ${new Date().toLocaleTimeString()}`;
-            setStatus("idle");
-            setProgress(100);
-            resolve({
-                text: mockText,
-                confidence: 90 + Math.random() * 10
-            });
-        }, 300); // 300ms mock delay
-    });
+    try {
+        const { data: { text, confidence } } = await workerRef.current.recognize(image);
+        setStatus("idle");
+        setProgress(100);
+        
+        return {
+            text,
+            confidence
+        };
+    } catch (error) {
+        console.error("OCR Recognition failed:", error);
+        setStatus("error");
+        return { text: "", confidence: 0 };
+    }
   }, []);
 
   return {
     status,
     progress,
     recognize,
-    isReady: status === "idle" // Simplified readiness
+    isReady: status === "idle" && !!workerRef.current
   };
 }

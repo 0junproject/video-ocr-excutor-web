@@ -7,6 +7,8 @@ interface VideoContextType {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   videoState: VideoState;
   loadFile: (file: File) => void;
+  loadUrl: (url: string) => void;
+  startScreenShare: () => Promise<void>;
   reset: () => void;
   togglePlay: () => void;
   setPlaybackRate: (rate: number) => void;

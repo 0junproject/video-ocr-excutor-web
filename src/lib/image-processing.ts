@@ -11,29 +11,29 @@ export async function captureVideoFrame(
   ): Promise<Blob | null> {
     if (!video || video.videoWidth === 0) return null;
   
-    // 1. Create offline canvas
-    const canvas = document.createElement("canvas");
-    
-    // 2. Calculate actual pixel coordinates
-    // roi x,y,w,h are in Percentages (0~100) or Pixels? 
-    // The previous plan implied we need coordinate transform. 
-    // Let's assume the input ROI is already in *Video Natural Dimensions* or *Percentages*.
-    // For specific implementation, let's stick to PERCENTAGE for responsiveness, 
-    // but the actual draw needs Pixels.
-    
-    // Let's define ROI as percentage (0-100) for this utility
+    // 1. Calculate actual pixel coordinates
     const pixelX = (roi.x / 100) * video.videoWidth;
     const pixelY = (roi.y / 100) * video.videoHeight;
     const pixelW = (roi.width / 100) * video.videoWidth;
     const pixelH = (roi.height / 100) * video.videoHeight;
+
+    // 2. Preprocessing Configuration
+    // Upscale factor to improve OCR on small text (Tesseract likes char height > 20px)
+    const scale = 2.0; 
   
-    canvas.width = pixelW;
-    canvas.height = pixelH;
+    // 3. Create offline canvas with scaled dimensions
+    const canvas = document.createElement("canvas");
+    canvas.width = pixelW * scale;
+    canvas.height = pixelH * scale;
   
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
   
-    // 3. Draw only the cropped region
+    // 4. Apply Filters (Grayscale + High Contrast)
+    // This helps Tesseract distinguish text from background noise
+    ctx.filter = 'grayscale(100%) contrast(200%)';
+
+    // 5. Draw the cropped region with scaling
     // drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
     ctx.drawImage(
       video,
@@ -43,14 +43,11 @@ export async function captureVideoFrame(
       pixelH,
       0,
       0,
-      pixelW,
-      pixelH
+      canvas.width,
+      canvas.height
     );
   
-    // 4. Preprocessing (Optional for better OCR)
-    // grayscale, binarization could go here
-    
-    // 5. Convert to Blob
+    // 6. Convert to Blob
     return new Promise((resolve) => {
       canvas.toBlob((blob) => {
         resolve(blob);

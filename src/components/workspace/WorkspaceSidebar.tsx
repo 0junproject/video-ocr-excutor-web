@@ -17,7 +17,7 @@ import { useExtractionContext } from "@/context/ExtractionContext";
 import { useRef } from "react";
 
 export function WorkspaceSidebar() {
-  const { loadFile, reset, setPlaybackRate } = useVideoContext();
+  const { loadFile, loadUrl, startScreenShare, reset, setPlaybackRate } = useVideoContext();
   const { rois, removeRoi, settings, updateSettings, isCapturing, setCapturing } = useExtractionContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,6 +34,28 @@ export function WorkspaceSidebar() {
       <div className="p-4 border-b border-border space-y-4">
         <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Source Control</h3>
         
+        {/* URL Input */}
+        <div className="flex gap-2">
+            <Input 
+                placeholder="Video URL (CORS allowed)" 
+                className="h-8 text-xs font-mono"
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                        loadUrl(e.currentTarget.value);
+                    }
+                }}
+            />
+        </div>
+
+        {/* Screen Share Button */}
+        <Button 
+            className="w-full h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white" 
+            onClick={startScreenShare}
+        >
+             🖥️ Start Screen Share
+        </Button>
+
+        {/* File Input */}
         <div className="flex gap-2">
           <input 
             type="file" 
@@ -42,18 +64,18 @@ export function WorkspaceSidebar() {
             accept="video/*" 
             className="hidden" 
           />
-          <Button className="flex-1" variant="default" onClick={() => fileInputRef.current?.click()}>
-            파일 열기
+          <Button className="flex-1 h-8 text-xs" variant="outline" onClick={() => fileInputRef.current?.click()}>
+            Open File
           </Button>
-          <Button className="flex-1" variant="secondary" onClick={reset}>
-            <RotateCcw className="w-4 h-4 mr-2" /> 초기화
+          <Button className="w-[80px] h-8 text-xs" variant="secondary" onClick={reset}>
+            <RotateCcw className="w-3 h-3" /> Reset
           </Button>
         </div>
 
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">재생 속도</span>
+        <div className="flex items-center justify-between text-sm pt-2 border-t border-border/50">
+          <span className="text-muted-foreground text-xs">Playback Speed</span>
           <Select defaultValue="1.0" onValueChange={(v) => setPlaybackRate(parseFloat(v))}>
-             <SelectTrigger className="w-[100px] h-8">
+             <SelectTrigger className="w-[80px] h-7 text-xs">
                <SelectValue placeholder="Speed" />
              </SelectTrigger>
              <SelectContent>

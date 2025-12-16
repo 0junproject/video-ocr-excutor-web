@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, SkipForward, SkipBack } from "lucide-react";
 import { useVideoContext } from "@/context/VideoContext";
@@ -10,8 +10,18 @@ import { cn } from "@/lib/utils";
 export function VideoStage() {
   const { videoRef, videoState, togglePlay, seek } = useVideoContext();
   const { rois, addRoi } = useExtractionContext();
-  const { isPlaying, currentTime, duration, sourceUrl } = videoState;
+  const { isPlaying, currentTime, duration, sourceUrl, stream } = videoState;
   
+  // Attach Stream if available
+  useEffect(() => {
+    if (videoRef.current && stream) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(console.error); // Auto-play stream
+    } else if (videoRef.current && !stream) {
+        videoRef.current.srcObject = null;
+    }
+  }, [stream, videoRef]);
+
   // Drag Selection State
   const containerRef = useRef<HTMLDivElement>(null);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -87,6 +97,8 @@ export function VideoStage() {
     return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
   };
 
+  const hasSource = !!sourceUrl || !!stream;
+
   return (
     <section className="flex-1 flex flex-col min-h-0 bg-[#121212] overflow-hidden">
       {/* Upper: Video Area */}
@@ -101,11 +113,11 @@ export function VideoStage() {
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp} // Cancel on leave or finalize? Finalize is safer.
         >
-             {sourceUrl ? (
+             {hasSource ? (
                 <>
                     <video 
                         ref={videoRef}
-                        src={sourceUrl}
+                        src={stream ? undefined : (sourceUrl || undefined)}
                         className="w-full h-full object-contain pointer-events-none" // Disable native events on video to let container handle them
                     />
                     
@@ -161,7 +173,7 @@ export function VideoStage() {
             variant="ghost" 
             size="icon" 
             onClick={togglePlay}
-            disabled={!sourceUrl}
+            disabled={!hasSource}
             className="hover:bg-primary/10 hover:text-primary"
         >
             {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
